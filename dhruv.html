@@ -1,0 +1,957 @@
+Nice — below is a single-file, ready-to-save HTML page that implements a modern, responsive travel blog for Namma Kudla. It includes:
+
+Home, Blog, Destinations, Guides, About, Contact, and a simple Admin Dashboard.
+
+Hash-based routing (no server needed).
+
+Sample data for posts, destinations, and guides.
+
+Post pages with comments (saved to localStorage).
+
+Search + filter by category / tag / destination.
+
+Guide profiles and contact/request form.
+
+Simple charts in Dashboard (uses Chart.js CDN — if offline, charts will fail gracefully).
+
+Responsive layout, accessible HTML structure, and CSS-only mobile menu toggle.
+
+Minimal external CDN usage (Google Fonts + Chart.js); all interactions handled in vanilla JS.
+
+
+Save as index.html and open in your browser. Everything runs client-side.
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Namma Kudla — Travel Blog</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js CDN for dashboard charts (optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+
+  <style>
+    :root{
+      --accent:#0b6cf0;
+      --muted:#6b7280;
+      --bg:#f7fafc;
+      --card:#ffffff;
+      --radius:14px;
+      --glass: rgba(255,255,255,0.6);
+      --max-width:1200px;
+      --shadow: 0 6px 18px rgba(15,23,42,0.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      margin:0; background:linear-gradient(180deg,#f8fbff 0%, #fcfcff 100%); color:#0f172a;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+      line-height:1.45;
+    }
+
+    /* Layout container */
+    .container{
+      max-width:var(--max-width);
+      margin:22px auto;
+      padding:0 18px;
+    }
+
+    /* Header / Nav */
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; margin-bottom:18px;
+    }
+    .brand{
+      display:flex; gap:12px; align-items:center;
+      text-decoration:none; color:inherit;
+    }
+    .logo{
+      width:52px; height:52px; border-radius:12px; display:grid; place-items:center;
+      background:linear-gradient(135deg,var(--accent),#0ea5a3); color:white; font-weight:700; box-shadow:var(--shadow);
+    }
+    nav{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+    nav a{
+      text-decoration:none; color:var(--muted); padding:8px 10px; border-radius:8px; font-weight:600;
+    }
+    nav a.active{ color:var(--accent); background:rgba(11,108,240,0.08); }
+
+    /* Mobile hamburger */
+    .hamburger{display:none; background:none; border:0; font-size:20px; cursor:pointer}
+    @media (max-width:880px){
+      nav{display:none}
+      .hamburger{display:inline-block}
+    }
+
+    /* Banner */
+    .banner{
+      background: linear-gradient(90deg, rgba(11,108,240,0.06), rgba(14,165,163,0.03));
+      border-radius:var(--radius);
+      padding:28px;
+      display:grid; grid-template-columns:1fr 360px; gap:20px; box-shadow:var(--shadow);
+    }
+    .welcome h1{font-size:28px;margin-bottom:8px}
+    .welcome p{color:var(--muted); margin-bottom:12px}
+    .cta-row{display:flex; gap:10px}
+    .btn{
+      background:var(--accent); color:white; border:0; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+    }
+    .btn.secondary{ background:transparent; border:1px solid rgba(15,23,42,0.06); color:var(--muted); }
+
+    /* Grid for main area */
+    .main-grid{ display:grid; grid-template-columns: 1fr 320px; gap:20px; margin-top:18px; }
+    @media (max-width:1100px){ .main-grid{ grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .card{background:var(--card); border-radius:12px; padding:16px; box-shadow:var(--shadow);}
+    .post-card{ display:flex; gap:14px; align-items:flex-start; }
+    .post-thumb{ width:150px; height:100px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+    .post-meta{ color:var(--muted); font-size:13px; margin-top:6px; }
+
+    /* Sidebar */
+    .sidebar .widget{ margin-bottom:14px }
+    .categories button, .tags button{ display:inline-block; margin:6px 6px 0 0; padding:8px 10px; border-radius:999px; border:0; cursor:pointer; background:#f1f5f9; color:var(--muted); font-weight:600;}
+
+    /* Post detail */
+    .post-article img{ max-width:100%; border-radius:12px; margin:12px 0; box-shadow:var(--shadow) }
+    .tags-list{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px }
+
+    /* Small utilities */
+    .muted { color:var(--muted); font-size:13px; }
+    .flex { display:flex; align-items:center; gap:12px; }
+    .spaced { display:flex; justify-content:space-between; align-items:center }
+
+    /* Footer */
+    footer{ margin-top:28px; padding:24px 0; color:var(--muted); text-align:center; font-size:14px }
+
+    /* Search bar */
+    .searchbar{display:flex; gap:8px}
+    .searchbar input[type="search"]{ flex:1; padding:10px 12px; border-radius:10px; border:1px solid #e6eefc; box-shadow:none; }
+
+    /* Forms */
+    input,textarea,select{ border:1px solid #e6eefc; padding:10px 12px; border-radius:10px; outline:none; }
+    textarea{ min-height:120px; resize:vertical; }
+
+    /* Dashboard */
+    .dashboard-grid{ display:grid; grid-template-columns:1fr 360px; gap:16px }
+    @media (max-width:1100px){ .dashboard-grid{ grid-template-columns:1fr; } }
+
+    /* Small responsive tweaks */
+    @media (max-width:600px){
+      .banner{ grid-template-columns: 1fr; }
+      .logo{ width:44px; height:44px }
+    }
+
+    /* subtle micro-interactions */
+    button:active{ transform:translateY(1px) }
+    a,button{ transition:all .18s ease }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a class="brand" href="#home" data-route>
+        <div class="logo" aria-hidden="true">NK</div>
+        <div>
+          <div style="font-weight:700">Namma Kudla</div>
+          <div style="font-size:12px;color:var(--muted)">Stories, Guides & Local Tips</div>
+        </div>
+      </a>
+
+      <nav id="main-nav" aria-label="Main navigation">
+        <a href="#home" data-route class="nav-link">Home</a>
+        <a href="#blog" data-route class="nav-link">Blog</a>
+        <a href="#destinations" data-route class="nav-link">Destinations</a>
+        <a href="#guides" data-route class="nav-link">Guides</a>
+        <a href="#about" data-route class="nav-link">About</a>
+        <a href="#contact" data-route class="nav-link">Contact</a>
+        <a href="#dashboard" data-route class="nav-link" style="border-left:1px solid rgba(15,23,42,0.04); padding-left:12px">Dashboard</a>
+      </nav>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn secondary" id="subscribe-btn">Subscribe</button>
+        <button class="hamburger" aria-label="Open menu" id="hamburger">☰</button>
+      </div>
+    </header>
+
+    <!-- Banner -->
+    <section id="banner" class="banner" role="region" aria-labelledby="banner-heading">
+      <div class="welcome">
+        <h1 id="banner-heading">Welcome to <span style="color:var(--accent)">Namma Kudla</span></h1>
+        <p>Explore Mangaluru's hidden alleys, coastal gems, food lanes, cultural festivals and travel stories written by locals and travellers.</p>
+        <div class="cta-row">
+          <button class="btn" id="explore-btn">Explore Posts</button>
+          <button class="btn secondary" id="write-btn">Write a Story</button>
+        </div>
+
+        <div style="margin-top:18px" class="card">
+          <div style="display:flex;justify-content:space-between; gap:12px;">
+            <div>
+              <div style="font-size:14px;color:var(--muted)">Featured</div>
+              <div style="font-weight:700">Sunset at Panambur</div>
+              <div class="muted" style="margin-top:6px">A local guide picks the perfect evening spots — beaches, cafes and prayers at the shore.</div>
+            </div>
+            <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3&s=5f4f9b5d3c38ee912c466e7f9b5b61ab" alt="" style="width:160px;height:90px;border-radius:10px;object-fit:cover">
+          </div>
+        </div>
+      </div>
+
+      <aside class="card" aria-label="Featured destinations">
+        <div style="font-weight:700;margin-bottom:8px">Popular Destinations</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="flex">
+            <img src="https://images.unsplash.com/photo-1502920917128-1aa500764b7f?q=80&w=120&auto=format&fit=crop&s=6b5b6e3a" alt="" style="width:70px;height:50px;border-radius:8px;object-fit:cover">
+            <div>
+              <div style="font-weight:600">Panambur Beach</div>
+              <div class="muted">Sandy shores & perfect sunsets</div>
+            </div>
+          </div>
+          <div class="flex">
+            <img src="https://images.unsplash.com/photo-1526772662000-3f88f10405ff?q=80&w=120&auto=format&fit=crop&s=6747a6c3" alt="" style="width:70px;height:50px;border-radius:8px;object-fit:cover">
+            <div>
+              <div style="font-weight:600">Sultan Battery</div>
+              <div class="muted">Lighthouse & sea views</div>
+            </div>
+          </div>
+          <div class="muted" style="font-size:13px;margin-top:6px">Join our newsletter to get seasonal guides, hidden gems and new posts.</div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Router outlet -->
+    <main id="app-root" style="margin-top:18px"></main>
+
+    <footer>
+      <div class="container" style="max-width:var(--max-width)"><small>© <strong>Namma Kudla</strong> — Made with ❤️ for travellers. All content fictional / sample data.</small></div>
+    </footer>
+  </div>
+
+  <template id="home-template">
+    <section>
+      <div class="main-grid">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2>Recent Posts</h2>
+            <div class="searchbar" style="max-width:420px;">
+              <input type="search" id="search-input" placeholder="Search posts, tags, places..." />
+            </div>
+          </div>
+
+          <div id="posts-list" style="display:grid;gap:12px"></div>
+
+          <div style="margin-top:14px">
+            <button class="btn" id="load-more">Load more</button>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <div class="card widget">
+            <div style="font-weight:700;margin-bottom:8px">Categories</div>
+            <div class="categories" id="categories-list"></div>
+          </div>
+
+          <div class="card widget">
+            <div style="font-weight:700;margin-bottom:8px">Popular Tags</div>
+            <div class="tags" id="tags-list"></div>
+          </div>
+
+          <div class="card widget">
+            <div style="font-weight:700;margin-bottom:8px">Newsletter</div>
+            <p class="muted">Subscribe for monthly tips & hidden places.</p>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="newsletter-email" placeholder="Your email" />
+              <button class="btn" id="newsletter-send">Join</button>
+            </div>
+            <div id="newsletter-msg" class="muted" style="margin-top:8px"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </template>
+
+  <template id="blog-template">
+    <section>
+      <h2 style="margin-bottom:10px">All Blog Posts</h2>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+        <select id="filter-category"><option value="">All categories</option></select>
+        <select id="filter-destination"><option value="">All destinations</option></select>
+        <input type="search" id="filter-keyword" placeholder="Search titles or content..." style="flex:1;padding:8px;border-radius:8px;border:1px solid #eee" />
+        <button class="btn" id="apply-filters">Apply</button>
+      </div>
+
+      <div id="blog-list" style="display:grid;gap:12px"></div>
+    </section>
+  </template>
+
+  <template id="post-template">
+    <section id="post-view">
+      <div class="card">
+        <div id="post-header" class="spaced">
+          <div>
+            <h2 id="post-title"></h2>
+            <div class="muted" id="post-meta"></div>
+          </div>
+          <div class="flex">
+            <button class="btn" id="share-btn">Share</button>
+            <button class="btn secondary" id="save-btn">Save</button>
+          </div>
+        </div>
+
+        <article class="post-article" id="post-content"></article>
+
+        <div style="margin-top:16px" class="spaced">
+          <div class="tags-list" id="post-tags"></div>
+          <div class="muted" id="post-destination"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px" class="card">
+        <h3>Comments</h3>
+        <div id="comments-list" style="display:flex;flex-direction:column;gap:12px;margin-top:8px"></div>
+
+        <div style="margin-top:12px">
+          <input id="comment-name" placeholder="Your name" />
+          <textarea id="comment-text" placeholder="Write a friendly comment..."></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="comment-send">Post Comment</button>
+            <div id="comment-msg" class="muted"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <template id="destinations-template">
+    <section>
+      <h2>Destinations</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px" id="dest-cards"></div>
+    </section>
+  </template>
+
+  <template id="destination-template">
+    <section>
+      <div id="dest-detail" class="card"></div>
+      <div style="margin-top:12px" id="related-posts"></div>
+    </section>
+  </template>
+
+  <template id="guides-template">
+    <section>
+      <h2>Local Guides</h2>
+      <div id="guides-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px"></div>
+    </section>
+  </template>
+
+  <template id="guide-template">
+    <section>
+      <div id="guide-detail" class="card"></div>
+      <div style="margin-top:12px" id="guide-posts"></div>
+    </section>
+  </template>
+
+  <template id="about-template">
+    <section>
+      <div class="card">
+        <h2>About Namma Kudla</h2>
+        <p class="muted">Namma Kudla is a community-driven travel blog celebrating the culture, food and coast of Mangaluru. We trust local experiences, photos from travellers, and curated guides from verified locals.</p>
+      </div>
+    </section>
+  </template>
+
+  <template id="contact-template">
+    <section>
+      <h2>Contact</h2>
+      <div class="main-grid">
+        <div>
+          <div class="card">
+            <form id="contact-form">
+              <div style="display:flex;gap:8px"><input id="contact-name" placeholder="Name" required /><input id="contact-email" placeholder="Email" required /></div>
+              <input id="contact-subject" placeholder="Subject" style="margin-top:8px" />
+              <textarea id="contact-message" placeholder="Message" style="margin-top:8px"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn">Send</button>
+                <div id="contact-msg" class="muted"></div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <aside class="card">
+          <h3>Find us</h3>
+          <p class="muted">Local office, sample address in Mangaluru. Use the map for directions.</p>
+          <div style="margin-top:8px">
+            <!-- OSM iframe placeholder -->
+            <iframe title="map" src="https://www.openstreetmap.org/export/embed.html?bbox=74.7978%2C12.8722%2C74.7988%2C12.8732&amp;layer=mapnik" style="width:100%;height:180px;border:0;border-radius:8px"></iframe>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </template>
+
+  <template id="dashboard-template">
+    <section>
+      <h2>Admin Dashboard</h2>
+      <div class="dashboard-grid" style="margin-top:12px">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="muted">Total Users</div>
+              <div style="font-weight:700" id="metric-users">--</div>
+            </div>
+            <div>
+              <div class="muted">Posts</div>
+              <div style="font-weight:700" id="metric-posts">--</div>
+            </div>
+            <div>
+              <div class="muted">Comments</div>
+              <div style="font-weight:700" id="metric-comments">--</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <canvas id="posts-chart" height="120"></canvas>
+          </div>
+
+        </div>
+
+        <aside class="card">
+          <div style="font-weight:700">Recent Activity</div>
+          <div id="recent-activity" style="margin-top:10px"></div>
+        </aside>
+      </div>
+    </section>
+  </template>
+
+  <script>
+  (function(){
+    /* -------- Sample data -------- */
+    const SAMPLE = {
+      posts: [
+        {
+          id: 'p1',
+          title: 'Sunset at Panambur — A Local Evening Guide',
+          author: 'Anu Rao',
+          date: '2025-10-05',
+          excerpt: 'Best spots to watch the sun, food stalls to try and tips to avoid crowds.',
+          content: `<p>Panambur beach offers sweeping sunsets and lively local food stalls. Walk east for quieter sands, and check the local fishing boats at dusk.</p>
+            <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop&s=5f4f9b5d3c38ee912c466e7f9b5b61ab" alt="Sunset">
+            <h3>Where to eat</h3><p>Try local seafood stalls and the sugarcane juice carts near the beach entrance.</p>`,
+          thumb: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800&auto=format&fit=crop&s=5f4f9b5d3c38ee912c466e7f9b5b61ab',
+          categories: ['Beaches', 'Local Food'],
+          tags: ['sunset','beach','food'],
+          destination: 'Panambur'
+        },
+        {
+          id: 'p2',
+          title: 'Heritage Walk — Old City Alleyways',
+          author: 'Rahul Shetty',
+          date: '2025-09-10',
+          excerpt: 'Explore temples, old houses and hidden mural art with a local guide.',
+          content: `<p>The Old City is full of narrow lanes, historic houses and flavourful bakeries. Bring comfortable shoes.</p><img src="https://images.unsplash.com/photo-1533743983669-94fa4d73b0a3?q=80&w=1200&auto=format&fit=crop&s=8f0bb4f4" alt="Heritage">`,
+          thumb: 'https://images.unsplash.com/photo-1533743983669-94fa4d73b0a3?q=80&w=800&auto=format&fit=crop&s=8f0bb4f4',
+          categories: ['Culture', 'Walking'],
+          tags: ['heritage','walk','culture'],
+          destination: 'Old City'
+        },
+        {
+          id: 'p3',
+          title: 'Mangalorean Coastal Cuisine — Must-Try Dishes',
+          author: 'Priya K',
+          date: '2025-08-15',
+          excerpt: 'A quick guide to seafood, kori rotti, neer dosa and where to find the best of it.',
+          content: `<p>From kori rotti to seafood curries, the coastal cuisine is rich and spicy. Street vendors and seaside cafés both have gems.</p>`,
+          thumb: 'https://images.unsplash.com/photo-1543353071-873f17a7a088?q=80&w=800&auto=format&fit=crop&s=ae5b2d2f',
+          categories: ['Food'],
+          tags: ['food','seafood','local'],
+          destination: 'Mangalore'
+        }
+      ],
+      destinations: [
+        { id:'Panambur', name:'Panambur Beach', summary:'Wide sandy beach, popular for sunsets and local food stalls.', images:[], long:'Panambur is a well-known beach. Walk along the shore, bring sunscreen and stay for sunset.' },
+        { id:'Old City', name:'Old City', summary:'Historic lanes, temples and local markets.', images:[], long:'The Old City offers cultural experiences, temples and traditional bakeries.' },
+        { id:'Mangalore', name:'Mangalore', summary:'Coastal city with ports, cuisine and cultural spots.', images:[], long:'Mangalore is the region hub, with varied cuisine and easy access to nearby beaches.' }
+      ],
+      guides: [
+        { id:'g1', name:'Anu Rao', bio:'Local guide specializing in coastal walks and seafood tours.', expertise:['Beaches','Food'], socials:{instagram:'@anuguides'} },
+        { id:'g2', name:'Rahul Shetty', bio:'Historian and walking-tour specialist across Old City alleys.', expertise:['Culture','Walking'], socials:{twitter:'@rahulwalks'} }
+      ],
+      users: [
+        { id:'u1', name:'Visitor01' },
+        { id:'u2', name:'BloggerAnna' }
+      ]
+    };
+
+    /* ---------- Utilities ---------- */
+    const qs = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+    const root = qs('#app-root');
+
+    function fmtDate(d){
+      try { return new Date(d).toLocaleDateString(); } catch(e){ return d; }
+    }
+
+    /* ---------- Local storage helpers ---------- */
+    function saveComment(postId, comment){
+      const key = 'comments_' + postId;
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      arr.unshift(comment);
+      localStorage.setItem(key, JSON.stringify(arr));
+    }
+    function getComments(postId){
+      const key = 'comments_' + postId;
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    }
+    function countCommentsAll(){
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('comments_'));
+      return keys.reduce((sum,k) => sum + JSON.parse(localStorage.getItem(k) || '[]').length, 0);
+    }
+
+    /* ---------- Router ---------- */
+    const ROUTES = {
+      home: renderHome,
+      blog: renderBlog,
+      post: renderPost,
+      destinations: renderDestinations,
+      destination: renderDestination,
+      guides: renderGuides,
+      guide: renderGuide,
+      about: renderAbout,
+      contact: renderContact,
+      dashboard: renderDashboard
+    };
+
+    function parseHash(){
+      const h = location.hash.replace('#','') || 'home';
+      const [route, id] = h.split('/');
+      return { route, id };
+    }
+
+    function router(){
+      const { route, id } = parseHash();
+      // set active nav link
+      qsa('.nav-link').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + route);
+      });
+
+      const handler = ROUTES[route] || ROUTES.home;
+      handler(id);
+    }
+
+    window.addEventListener('hashchange', router);
+
+    /* ---------- Renderers ---------- */
+
+    function render(templateHtml){
+      root.innerHTML = '';
+      root.appendChild(templateHtml);
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    /* Home */
+    function renderHome(){
+      const tpl = qs('#home-template').content.cloneNode(true);
+      render(tpl);
+
+      // populate categories & tags (from sample data)
+      const categories = [...new Set(SAMPLE.posts.flatMap(p => p.categories))];
+      const tags = [...new Set(SAMPLE.posts.flatMap(p => p.tags))];
+
+      const categoriesList = qs('#categories-list');
+      categories.forEach(c => {
+        const btn = document.createElement('button');
+        btn.textContent = c; btn.onclick = () => location.hash = '#blog';
+        categoriesList.appendChild(btn);
+      });
+
+      const tagsList = qs('#tags-list');
+      tags.forEach(t => {
+        const btn = document.createElement('button');
+        btn.textContent = '#' + t; btn.onclick = () => {
+          qs('#search-input').value = t;
+          applySearch();
+        };
+        tagsList.appendChild(btn);
+      });
+
+      // posts list
+      const postsList = qs('#posts-list');
+      SAMPLE.posts.forEach(p => {
+        const card = document.createElement('article');
+        card.className = 'card post-card';
+        card.innerHTML = `
+          <img class="post-thumb" src="${p.thumb}" alt="">
+          <div>
+            <a href="#post/${p.id}" data-route style="text-decoration:none;color:inherit"><div style="font-weight:700">${p.title}</div></a>
+            <div class="post-meta">${p.author} • ${fmtDate(p.date)} • ${p.destination}</div>
+            <div class="muted" style="margin-top:8px">${p.excerpt}</div>
+          </div>
+        `;
+        postsList.appendChild(card);
+      });
+
+      // newsletter
+      qs('#newsletter-send').addEventListener('click', () => {
+        const em = qs('#newsletter-email').value.trim();
+        if(!em || !/.+@.+\..+/.test(em)){ qs('#newsletter-msg').textContent = 'Please enter a valid email.'; return; }
+        const list = JSON.parse(localStorage.getItem('newsletter') || '[]');
+        if(list.includes(em)){ qs('#newsletter-msg').textContent = 'You are already subscribed!'; return; }
+        list.push(em); localStorage.setItem('newsletter', JSON.stringify(list));
+        qs('#newsletter-msg').textContent = 'Thanks — you are subscribed!';
+      });
+
+      qs('#explore-btn').addEventListener('click', ()=> location.hash = '#blog');
+      qs('#write-btn').addEventListener('click', ()=> {
+        const name = prompt('Your name (will be shown as author):', 'Guest');
+        if(name) { alert('Great! In this demo you can simulate a new post by opening the console.'); }
+      });
+
+      // search
+      qs('#search-input').addEventListener('input', applySearch);
+      function applySearch(){
+        const q = qs('#search-input').value.trim().toLowerCase();
+        qsa('#posts-list .post-card').forEach(card => {
+          const txt = card.textContent.toLowerCase();
+          card.style.display = q ? (txt.includes(q) ? '' : 'none') : '';
+        });
+      }
+    }
+
+    /* Blog list with filters */
+    function renderBlog(){
+      const tpl = qs('#blog-template').content.cloneNode(true);
+      render(tpl);
+
+      const filterCategory = qs('#filter-category');
+      const filterDestination = qs('#filter-destination');
+      const keyword = qs('#filter-keyword');
+      const blogList = qs('#blog-list');
+
+      const categories = [...new Set(SAMPLE.posts.flatMap(p => p.categories))];
+      categories.forEach(c => {
+        const opt = document.createElement('option'); opt.value=c; opt.textContent=c; filterCategory.appendChild(opt);
+      });
+      const dests = [...new Set(SAMPLE.posts.map(p => p.destination))];
+      dests.forEach(d => {
+        const opt = document.createElement('option'); opt.value=d; opt.textContent=d; filterDestination.appendChild(opt);
+      });
+
+      function showPosts(posts){
+        blogList.innerHTML = '';
+        posts.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'card post-card';
+          card.innerHTML = `
+            <img class="post-thumb" src="${p.thumb}" alt="">
+            <div>
+              <a href="#post/${p.id}" data-route style="text-decoration:none;color:inherit"><div style="font-weight:700">${p.title}</div></a>
+              <div class="post-meta">${p.author} • ${fmtDate(p.date)} • ${p.destination}</div>
+              <div class="muted" style="margin-top:8px">${p.excerpt}</div>
+            </div>
+          `;
+          blogList.appendChild(card);
+        });
+      }
+
+      showPosts(SAMPLE.posts);
+
+      qs('#apply-filters').addEventListener('click', () => {
+        const cat = filterCategory.value;
+        const dest = filterDestination.value;
+        const q = keyword.value.trim().toLowerCase();
+        const filtered = SAMPLE.posts.filter(p => {
+          if(cat && !p.categories.includes(cat)) return false;
+          if(dest && p.destination !== dest) return false;
+          if(q && !(p.title.toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q) || p.content.toLowerCase().includes(q))) return false;
+          return true;
+        });
+        showPosts(filtered);
+      });
+    }
+
+    /* Single Post */
+    function renderPost(id){
+      const post = SAMPLE.posts.find(p => p.id === id);
+      if(!post){ root.innerHTML = '<div class="card"><h3>Post not found</h3></div>'; return; }
+      const tpl = qs('#post-template').content.cloneNode(true);
+      render(tpl);
+
+      qs('#post-title').textContent = post.title;
+      qs('#post-meta').textContent = `${post.author} • ${fmtDate(post.date)}`;
+      qs('#post-content').innerHTML = post.content;
+      qs('#post-destination').textContent = post.destination;
+
+      // tags
+      const tagContainer = qs('#post-tags');
+      post.tags.forEach(t => {
+        const el = document.createElement('span'); el.className='muted'; el.style.marginRight='8px';
+        el.textContent = '#' + t; el.style.cursor='pointer';
+        el.onclick = () => { qs('#search-input') && (qs('#search-input').value = t); location.hash = '#blog' };
+        tagContainer.appendChild(el);
+      });
+
+      // comments
+      function renderComments(){
+        const list = getComments(post.id);
+        const container = qs('#comments-list');
+        container.innerHTML = '';
+        if(!list.length) container.innerHTML = '<div class="muted">No comments yet — be the first!</div>';
+        list.forEach(c => {
+          const el = document.createElement('div');
+          el.style.borderTop = '1px solid #f1f5f9'; el.style.paddingTop='8px';
+          el.innerHTML = `<div style="font-weight:700">${escapeHtml(c.name)} <span class="muted" style="font-weight:600">• ${fmtDate(c.date)}</span></div><div class="muted">${escapeHtml(c.text)}</div>`;
+          container.appendChild(el);
+        });
+      }
+      renderComments();
+
+      qs('#comment-send').addEventListener('click', () => {
+        const name = qs('#comment-name').value.trim();
+        const text = qs('#comment-text').value.trim();
+        if(!name || !text){ qs('#comment-msg').textContent = 'Enter name and comment.'; return; }
+        const comment = { name, text, date: new Date().toISOString() };
+        saveComment(post.id, comment);
+        qs('#comment-name').value = ''; qs('#comment-text').value='';
+        qs('#comment-msg').textContent = 'Posted!';
+        setTimeout(()=>qs('#comment-msg').textContent='',1200);
+        renderComments();
+      });
+
+      // share/save
+      qs('#share-btn').addEventListener('click', async () => {
+        try {
+          if(navigator.share){
+            await navigator.share({ title: post.title, text: post.excerpt, url: location.href });
+          } else {
+            await navigator.clipboard.writeText(location.href);
+            alert('Link copied to clipboard');
+          }
+        } catch(e){ console.warn(e) }
+      });
+
+      qs('#save-btn').addEventListener('click', ()=> {
+        const saved = JSON.parse(localStorage.getItem('saved_posts') || '[]');
+        if(!saved.includes(post.id)) saved.push(post.id);
+        localStorage.setItem('saved_posts', JSON.stringify(saved));
+        alert('Saved to your list (local demo).');
+      });
+    }
+
+    /* Destinations list */
+    function renderDestinations(){
+      const tpl = qs('#destinations-template').content.cloneNode(true);
+      render(tpl);
+      const container = qs('#dest-cards');
+      SAMPLE.destinations.forEach(d => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700">${d.name}</div>
+              <div class="muted" style="margin-top:6px">${d.summary}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;justify-content:center">
+              <button class="btn" onclick="location.hash='#destination/${encodeURIComponent(d.id)}'">View</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /* Destination detail */
+    function renderDestination(id){
+      const dest = SAMPLE.destinations.find(d => d.id === id);
+      if(!dest){ root.innerHTML = '<div class="card"><h3>Destination not found</h3></div>'; return; }
+      const tpl = qs('#destination-template').content.cloneNode(true);
+      render(tpl);
+
+      const el = qs('#dest-detail');
+      el.innerHTML = `
+        <h2>${dest.name}</h2>
+        <p class="muted">${dest.summary}</p>
+        <p style="margin-top:10px">${dest.long}</p>
+        <div style="margin-top:8px">
+          <iframe title="${dest.name} map" src="https://www.openstreetmap.org/export/embed.html?bbox=74.80%2C12.87%2C74.81%2C12.88&amp;layer=mapnik" style="width:100%;height:240px;border:0;border-radius:10px"></iframe>
+        </div>
+      `;
+
+      // related posts
+      const related = SAMPLE.posts.filter(p => p.destination === dest.id);
+      const rp = qs('#related-posts');
+      rp.innerHTML = '<h3 class="muted">Related posts</h3>';
+      related.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'card';
+        item.style.marginTop='10px';
+        item.innerHTML = `<a href="#post/${p.id}" data-route style="text-decoration:none;color:inherit"><div style="font-weight:700">${p.title}</div><div class="muted">${p.excerpt}</div></a>`;
+        rp.appendChild(item);
+      });
+    }
+
+    /* Guides */
+    function renderGuides(){
+      const tpl = qs('#guides-template').content.cloneNode(true);
+      render(tpl);
+      const grid = qs('#guides-grid');
+      SAMPLE.guides.forEach(g => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="width:62px;height:62px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#0ea5a3);display:grid;place-items:center;color:white;font-weight:700">${g.name.split(' ').map(n=>n[0]).join('')}</div>
+            <div>
+              <div style="font-weight:700">${g.name}</div>
+              <div class="muted">${g.bio}</div>
+              <div style="margin-top:6px"><button class="btn secondary" onclick="location.hash='#guide/${g.id}'">View profile</button></div>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderGuide(id){
+      const guide = SAMPLE.guides.find(g => g.id === id);
+      if(!guide){ root.innerHTML = '<div class="card"><h3>Guide not found</h3></div>'; return; }
+      const tpl = qs('#guide-template').content.cloneNode(true);
+      render(tpl);
+      const el = qs('#guide-detail');
+      el.innerHTML = `
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="width:84px;height:84px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#0ea5a3);display:grid;place-items:center;color:white;font-weight:700;font-size:22px">${guide.name.split(' ').map(n=>n[0]).join('')}</div>
+          <div>
+            <div style="font-weight:700">${guide.name}</div>
+            <div class="muted">${guide.bio}</div>
+            <div style="margin-top:8px"><strong>Expertise:</strong> ${guide.expertise.join(', ')}</div>
+            <div style="margin-top:8px">
+              <button class="btn" id="contact-guide">Contact</button>
+            </div>
+          </div>
+        </div>
+      `;
+      qs('#contact-guide').addEventListener('click', ()=> {
+        const note = prompt('Enter a short message to the guide:');
+        if(note) alert('Message sent (demo). Guide will respond via their social link: ' + (guide.socials.instagram || guide.socials.twitter || 'No link'));
+      });
+
+      // list guide posts (by matching author)
+      const postsByGuide = SAMPLE.posts.filter(p => p.author.split(' ')[0] === guide.name.split(' ')[0] || p.author === guide.name);
+      const grid = qs('#guide-posts');
+      grid.innerHTML = '<h3 class="muted">Posts by this guide</h3>';
+      if(!postsByGuide.length) grid.innerHTML += '<div class="muted">No posts yet from this guide.</div>';
+      postsByGuide.forEach(p => {
+        const card = document.createElement('div'); card.className='card'; card.style.marginTop='8px';
+        card.innerHTML = `<a href="#post/${p.id}" data-route style="text-decoration:none;color:inherit"><div style="font-weight:700">${p.title}</div><div class="muted">${p.excerpt}</div></a>`;
+        grid.appendChild(card);
+      });
+    }
+
+    /* About & Contact */
+    function renderAbout(){ render(qs('#about-template').content.cloneNode(true)); }
+    function renderContact(){
+      render(qs('#contact-template').content.cloneNode(true));
+      qs('#contact-form').addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const data = {
+          name: qs('#contact-name').value,
+          email: qs('#contact-email').value,
+          subject: qs('#contact-subject').value,
+          message: qs('#contact-message').value,
+          date: new Date().toISOString()
+        };
+        const arr = JSON.parse(localStorage.getItem('contacts')||'[]'); arr.unshift(data); localStorage.setItem('contacts', JSON.stringify(arr));
+        qs('#contact-msg').textContent = 'Message sent — thanks!';
+        qs('#contact-form').reset();
+      });
+    }
+
+    /* Dashboard */
+    function renderDashboard(){
+      const tpl = qs('#dashboard-template').content.cloneNode(true);
+      render(tpl);
+      qs('#metric-users').textContent = SAMPLE.users.length;
+      qs('#metric-posts').textContent = SAMPLE.posts.length;
+      qs('#metric-comments').textContent = countCommentsAll();
+
+      // recent activity from localstorage (contacts & comments)
+      const recent = [];
+      const contacts = JSON.parse(localStorage.getItem('contacts') || '[]');
+      contacts.slice(0,6).forEach(c => recent.push({text:`Contact: ${c.name} — ${c.subject || 'No subject'}`, date:c.date}));
+      const commentKeys = Object.keys(localStorage).filter(k=>k.startsWith('comments_'));
+      commentKeys.forEach(k => {
+        const arr = JSON.parse(localStorage.getItem(k)||'[]');
+        arr.slice(0,3).forEach(cm => recent.push({text:`Comment by ${cm.name} on ${k.replace('comments_','')}`, date:cm.date}));
+      });
+      recent.sort((a,b)=> new Date(b.date) - new Date(a.date));
+      const recentEl = qs('#recent-activity');
+      recent.slice(0,8).forEach(r => {
+        const div = document.createElement('div'); div.style.padding='8px 0'; div.style.borderBottom='1px solid #f1f5f9';
+        div.innerHTML = `<div style="font-weight:700">${r.text}</div><div class="muted">${fmtDate(r.date)}</div>`;
+        recentEl.appendChild(div);
+      });
+
+      // chart of posts per month (sample)
+      try {
+        const ctx = qs('#posts-chart').getContext('2d');
+        const labels = SAMPLE.posts.map(p=> new Date(p.date).toLocaleDateString());
+        const data = { labels, datasets: [{label:'Posts', data: SAMPLE.posts.map(()=>1) }]};
+        const myChart = new Chart(ctx, { type:'bar', data, options:{responsive:true, plugins:{legend:{display:false}} }});
+      } catch(e){
+        console.warn('Chart failed', e);
+      }
+    }
+
+    /* ---------- Helpers ---------- */
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    /* ---------- App Initialization ---------- */
+    // mobile nav toggle
+    qs('#hamburger').addEventListener('click', () => {
+      const nav = qs('#main-nav');
+      if(nav.style.display === 'flex') nav.style.display = '';
+      else nav.style.display = 'flex';
+    });
+
+    // delegation for in-page links (so SPA routing works)
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-route]');
+      if(a){
+        e.preventDefault();
+        const href = a.getAttribute('href') || a.dataset.href;
+        if(href) location.hash = href.replace('#','') || 'home';
+      }
+    });
+
+    // quick actions
+    qs('#subscribe-btn').addEventListener('click', ()=> {
+      const email = prompt('Enter email to subscribe:');
+      if(email) {
+        const list = JSON.parse(localStorage.getItem('newsletter') || '[]');
+        list.push(email); localStorage.setItem('newsletter', JSON.stringify(list));
+        alert('Subscribed — demo.');
+      }
+    });
+
+    // initial route
+    if(!location.hash) location.hash = '#home';
+    router();
+
+    // expose some functions to window for inline onclick (safe)
+    window.renderDestination = (id) => { location.hash = '#destination/' + encodeURIComponent(id) };
+    window.renderGuide = (id) => { location.hash = '#guide/' + encodeURIComponent(id) };
+  })();
+  </script>
+</body>
+</html>
+
+If you want, I can:
+
+Convert this to a multi-page React app or a Node/Express backend with real user auth.
+
+Add a real map layer (Leaflet) + offline fallbacks.
+
+Improve visuals with Tailwind or animations. Tell me which direction and I’ll update the file.
